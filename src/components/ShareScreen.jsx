@@ -3,12 +3,15 @@ import { useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
+import '../styles/ShareScreen.css';
 
 const ShareScreen = () => {
   const { roomId } = useParams();
   const [socketConnected, setSocketConnected] = useState(false);
   const [screenResolution, setScreenResolution] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  const [isSharing, setIsSharing] = useState(false);
+  const [viewerCount, setViewerCount] = useState(0);
   const socketRef = useRef();
   const peersRef = useRef({});
   const streamRef = useRef();
@@ -16,6 +19,54 @@ const ShareScreen = () => {
   // 获取当前URL的完整地址（不包含路径部分）
   const baseUrl = window.location.origin;
   const viewUrl = `${baseUrl}/view/${roomId}`;
+
+  // 开始分享屏幕的函数
+  const startSharing = async () => {
+    try {
+      // 获取屏幕媒体流
+      const stream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: true,
+        audio: true
+      });
+      streamRef.current = stream;
+      
+      // 获取屏幕分辨率
+      const videoTrack = stream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings();
+      const resolution = {
+        width: settings.width,
+        height: settings.height
+      };
+      setScreenResolution(resolution);
+      
+      // 更新分辨率信息
+      socketRef.current.emit('update-resolution', { roomId, resolution });
+      
+      // 监听媒体流结束事件
+      videoTrack.addEventListener('ended', () => {
+        stopSharing();
+      });
+      
+      setIsSharing(true);
+    } catch (err) {
+      console.error('获取屏幕流失败:', err);
+    }
+  };
+  
+  // 停止分享屏幕的函数
+  const stopSharing = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    // 断开所有对等连接
+    Object.values(peersRef.current).forEach(peer => peer.destroy());
+    peersRef.current = {};
+    
+    setIsSharing(false);
+    setScreenResolution(null);
+  };
 
   useEffect(() => {
     // 更新当前时间
@@ -35,50 +86,29 @@ const ShareScreen = () => {
       socket.emit('create-room', roomId);
     });
 
-    socket.on('viewer-joined', async (viewerId) => {
+    socket.on('viewer-joined', (viewerId) => {
       console.log('观看者已加入:', viewerId);
-      // 开始分享屏幕
-      if (!streamRef.current) {
-        try {
-          const stream = await navigator.mediaDevices.getDisplayMedia({ 
-            video: true,
-            audio: true
-          });
-          streamRef.current = stream;
-          
-          // 获取屏幕分辨率
-          const videoTrack = stream.getVideoTracks()[0];
-          const settings = videoTrack.getSettings();
-          const resolution = {
-            width: settings.width,
-            height: settings.height
-          };
-          setScreenResolution(resolution);
-          
-          // 更新分辨率信息
-          socket.emit('update-resolution', { roomId, resolution });
-        } catch (err) {
-          console.error('获取屏幕流失败:', err);
-          return;
-        }
+      setViewerCount(prev => prev + 1);
+      
+      // 如果已经在分享屏幕，则为新加入的观看者创建对等连接
+      if (isSharing && streamRef.current) {
+        // 创建对等连接
+        const peer = new Peer({
+          initiator: true,
+          trickle: false,
+          stream: streamRef.current
+        });
+        
+        peersRef.current[viewerId] = peer;
+        
+        peer.on('signal', (signal) => {
+          socket.emit('signal', { to: viewerId, signal });
+        });
+        
+        peer.on('error', (err) => {
+          console.error('Peer连接错误:', err);
+        });
       }
-      
-      // 创建对等连接
-      const peer = new Peer({
-        initiator: true,
-        trickle: false,
-        stream: streamRef.current
-      });
-      
-      peersRef.current[viewerId] = peer;
-      
-      peer.on('signal', (signal) => {
-        socket.emit('signal', { to: viewerId, signal });
-      });
-      
-      peer.on('error', (err) => {
-        console.error('Peer连接错误:', err);
-      });
     });
     
     socket.on('signal', ({ from, signal }) => {
@@ -94,6 +124,7 @@ const ShareScreen = () => {
         peersRef.current[viewerId].destroy();
         delete peersRef.current[viewerId];
       }
+      setViewerCount(prev => Math.max(0, prev - 1));
     });
     
     socket.on('disconnect', () => {
@@ -122,6 +153,25 @@ const ShareScreen = () => {
     <div className="share-screen-container">
       <h1>屏幕分享 (B)</h1>
       
+      <div className="share-controls">
+        {!isSharing ? (
+          <button 
+            className="share-button" 
+            onClick={startSharing} 
+            disabled={!socketConnected}
+          >
+            开始分享
+          </button>
+        ) : (
+          <button 
+            className="stop-button" 
+            onClick={stopSharing}
+          >
+            停止分享
+          </button>
+        )}
+      </div>
+      
       <div className="qr-container">
         <h2>扫描二维码查看分享</h2>
         <QRCodeSVG value={viewUrl} size={256} />
@@ -130,6 +180,8 @@ const ShareScreen = () => {
       <div className="info-container">
         <p>房间ID: {roomId}</p>
         <p>Socket连接状态: {socketConnected ? '已连接' : '未连接'}</p>
+        <p>分享状态: {isSharing ? '正在分享' : '未分享'}</p>
+        <p>观看人数: {viewerCount}</p>
         {screenResolution && (
           <p>屏幕分辨率: {screenResolution.width} x {screenResolution.height}</p>
         )}

@@ -3,10 +3,14 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-
+import os from "os"
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
+function getLocalIP() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .find(iface => iface.family === 'IPv4' && !iface.internal)?.address || 'localhost';
+}
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -95,7 +99,10 @@ app.get('/*', (req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
+
 const PORT = process.env.PORT || 3000;
+const DOMAIN = getLocalIP();
 server.listen(PORT, () => {
+  // console.log(`服务器运行在 http://${DOMAIN}:${PORT}`);
   console.log(`服务器运行在 http://localhost:${PORT}`);
 });
