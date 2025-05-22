@@ -1,20 +1,22 @@
-import { useState, lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import './App.css'
+import { useState, lazy, Suspense } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import "./App.css";
 
 // 导入组件
 const Home = () => (
   <div className="home-container">
     <h1>屏幕分享工具</h1>
     <div className="buttons">
-      <a href={`/share/${Date.now()}`} className="btn share-btn">创建分享(B)</a>
+      <a href={`/share/${Date.now()}`} className="btn share-btn">
+        创建分享(B)
+      </a>
     </div>
   </div>
 );
 
 // 懒加载其他组件
-const ShareScreen = lazy(() => import('./components/ShareScreen'));
-const ViewScreen = lazy(() => import('./components/ViewScreen'));
+const ShareScreen = lazy(() => import("./components/ShareScreen"));
+const ViewScreen = lazy(() => import("./components/ViewScreen"));
 
 function App() {
   return (
@@ -29,7 +31,7 @@ function App() {
         </Suspense>
       </div>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;

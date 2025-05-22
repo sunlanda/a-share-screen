@@ -10,7 +10,8 @@
   text-align: center;
 }
 
-.share-button, .stop-button {
+.share-button,
+.stop-button {
   padding: 12px 24px;
   font-size: 16px;
   border: none;
@@ -21,7 +22,7 @@
 }
 
 .share-button {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
 }
 
@@ -58,4 +59,10 @@
 .url-container {
   margin: 20px 0;
   word-break: break-all;
+}
+.view-container{
+  width: 400px;
+}
+.view-container video{
+  width: 100%;
 }

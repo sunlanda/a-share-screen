@@ -57,3 +57,8 @@ npm start
 - 需要现代浏览器支持（Chrome、Firefox、Edge等）
 - 屏幕共享需要HTTPS环境或localhost
 - 确保两台设备能够连接到同一网络或互联网
+
+
+## 参考文档
+* [MDN:MediaStream](https://developer.mozilla.org/zh-CN/docs/Web/API/MediaStream)
+* [MDN:getDisplayPlayMedia](https://developer.mozilla.org/zh-CN/docs/Web/API/MediaDevices/getDisplayMedia)
